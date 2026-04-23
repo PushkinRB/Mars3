@@ -1,39 +1,29 @@
 package com.roman.mars.ui.chat
-
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.roman.mars.data.supabase.MessagesRepository
-import com.roman.mars.data.supabase.MessageDto
-import com.roman.mars.ui.auth.SessionRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-
-class ChatViewModel(
-    private val repository: MessagesRepository = MessagesRepository(),
-    private val sessionRepository: SessionRepository = SessionRepository()
-) : ViewModel() {
-
+import android.util.Log import androidx.lifecycle.ViewModel import androidx.lifecycle.viewModelScope import com.roman.mars.data.supabase.MessageDto import com.roman.mars.data.supabase.MessagesRepository import com.roman.mars.ui.auth.SessionRepository import kotlinx.coroutines.flow.MutableStateFlow import kotlinx.coroutines.flow.StateFlow import kotlinx.coroutines.flow.asStateFlow import kotlinx.coroutines.flow.update import kotlinx.coroutines.launch
+class ChatViewModel( private val repository: MessagesRepository = MessagesRepository(), private val sessionRepository: SessionRepository = SessionRepository() ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         ChatUiState(
             messages = emptyList<MessageDto>()
         )
     )
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+
     private var currentChatId: String? = null
+
     fun setChat(chatId: String) {
         if (currentChatId == chatId) return
         currentChatId = chatId
         loadMessages()
     }
+
     fun loadMessages() {
         val chatId = currentChatId ?: return
+
         viewModelScope.launch {
             _uiState.update {
                 it.copy(isLoading = true, error = null)
             }
+
             try {
                 val messages = repository.loadMessages(chatId)
                 _uiState.update {
@@ -44,6 +34,7 @@ class ChatViewModel(
                     )
                 }
             } catch (e: Exception) {
+                Log.e("ChatViewModel", "Failed to load messages for chatId=$chatId", e)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -53,11 +44,13 @@ class ChatViewModel(
             }
         }
     }
+
     fun onDraftChanged(value: String) {
         _uiState.update {
             it.copy(draftMessage = value)
         }
     }
+
     fun startEditing(messageId: String, oldText: String) {
         _uiState.update {
             it.copy(
@@ -68,6 +61,7 @@ class ChatViewModel(
             )
         }
     }
+
     fun cancelEditing() {
         _uiState.update {
             it.copy(
@@ -78,33 +72,47 @@ class ChatViewModel(
             )
         }
     }
+
     fun sendMessage() {
         val editingMessageId = uiState.value.editingMessageId
         if (editingMessageId != null) {
             saveEditedMessage(editingMessageId)
             return
         }
+
         val chatId = currentChatId ?: return
         val senderId = sessionRepository.currentUserId()
         val text = uiState.value.draftMessage.trim()
+
+        Log.d("ChatViewModel", "sendMessage chatId=$chatId senderId=$senderId textLength=${text.length}")
+
         if (senderId.isNullOrBlank()) {
             _uiState.update {
                 it.copy(error = "Пользователь не авторизован")
             }
+            Log.e("ChatViewModel", "sendMessage failed: senderId is null or blank")
             return
         }
-        if (text.isBlank()) return
+
+        if (text.isBlank()) {
+            Log.e("ChatViewModel", "sendMessage ignored: text is blank")
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update {
                 it.copy(isSending = true, error = null)
             }
+
             try {
                 repository.sendMessage(
                     chatId = chatId,
                     senderId = senderId,
                     text = text
                 )
+
                 val updatedMessages = repository.loadMessages(chatId)
+
                 _uiState.update {
                     it.copy(
                         messages = updatedMessages,
@@ -115,7 +123,10 @@ class ChatViewModel(
                         isEditing = false
                     )
                 }
+
+                Log.d("ChatViewModel", "sendMessage success for chatId=$chatId")
             } catch (e: Exception) {
+                Log.e("ChatViewModel", "sendMessage failed for chatId=$chatId senderId=$senderId", e)
                 _uiState.update {
                     it.copy(
                         isSending = false,
@@ -125,10 +136,12 @@ class ChatViewModel(
             }
         }
     }
+
     private fun saveEditedMessage(messageId: String) {
         val chatId = currentChatId ?: return
         val trimmed = uiState.value.draftMessage.trim()
         if (trimmed.isBlank()) return
+
         viewModelScope.launch {
             try {
                 repository.editMessage(messageId, trimmed)
@@ -143,6 +156,7 @@ class ChatViewModel(
                     )
                 }
             } catch (e: Exception) {
+                Log.e("ChatViewModel", "editMessage failed for messageId=$messageId", e)
                 _uiState.update {
                     it.copy(
                         error = e.message ?: "Не удалось отредактировать сообщение"
@@ -151,8 +165,10 @@ class ChatViewModel(
             }
         }
     }
+
     fun deleteMessage(messageId: String) {
         val chatId = currentChatId ?: return
+
         viewModelScope.launch {
             try {
                 repository.deleteMessage(messageId)
@@ -164,6 +180,7 @@ class ChatViewModel(
                     )
                 }
             } catch (e: Exception) {
+                Log.e("ChatViewModel", "deleteMessage failed for messageId=$messageId", e)
                 _uiState.update {
                     it.copy(
                         error = e.message ?: "Не удалось удалить сообщение"
@@ -172,10 +189,12 @@ class ChatViewModel(
             }
         }
     }
+
     fun editMessage(messageId: String, newText: String) {
         val chatId = currentChatId ?: return
         val trimmed = newText.trim()
         if (trimmed.isBlank()) return
+
         viewModelScope.launch {
             try {
                 repository.editMessage(messageId, trimmed)
@@ -187,6 +206,7 @@ class ChatViewModel(
                     )
                 }
             } catch (e: Exception) {
+                Log.e("ChatViewModel", "editMessage failed for messageId=$messageId", e)
                 _uiState.update {
                     it.copy(
                         error = e.message ?: "Не удалось отредактировать сообщение"
