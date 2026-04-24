@@ -9,14 +9,12 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.10.0"
 lifecycleRuntimeCompose = "2.10.0"
 activityCompose = "1.13.0"
-composeBom = "2026.02.01" # Оставляем вашу версию
+composeBom = "2026.02.01"
 room = "2.7.2"
-# НОВЫЕ ВЕРСИИ
-supabase = "2.5.2"
-securityCrypto = "1.1.0-alpha06"
-kotlinxSerialization = "1.8.1"
+supabase = "3.2.5"
 ktor = "3.1.3"
-
+kotlinxSerializationJson = "1.8.1"
+securityCrypto = "1.1.0-alpha06"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -43,23 +41,19 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
-# НОВЫЕ БИБЛИОТЕКИ
+supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt", version.ref = "supabase" }
+supabase-realtime = { group = "io.github.jan-tennert.supabase", name = "realtime-kt", version.ref = "supabase" }
+supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt", version.ref = "supabase" }
+
+ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
-kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
-
-# Supabase Bill of Materials (BOM) - управляет версиями всех модулей Supabase
-supabase-bom = { group = "io.github.jan-supabase", name = "bom", version.ref = "supabase" }
-supabase-postgrest = { group = "io.github.jan-supabase", name = "postgrest-kt" }
-supabase-realtime = { group = "io.github.jan-supabase", name = "realtime-kt" }
-supabase-auth = { group = "io.github.jan-supabase", name = "auth-kt" }
-
-# Ktor (необходим для Supabase)
-ktor-client-android = { group = "io.ktor", name = "ktor-client-android" }
-ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation" }
-ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json" }
-
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
