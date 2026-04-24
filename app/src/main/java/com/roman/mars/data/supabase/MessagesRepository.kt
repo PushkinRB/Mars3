@@ -20,15 +20,8 @@ class MessagesRepository {
         return SupabaseProvider.client.postgrest["messages"]
             .select(
                 columns = Columns.list(
-                    "id",
-                    "chat_id",
-                    "sender_id",
-                    "client_id",
-                    "text",
-                    "created_at",
-                    "updated_at",
-                    "deleted_at",
-                    "version"
+                    "id", "chat_id", "sender_id", "client_id",
+                    "text", "created_at", "updated_at", "deleted_at", "version"
                 )
             ) {
                 filter {
@@ -40,20 +33,16 @@ class MessagesRepository {
             .decodeList<MessageDto>()
     }
 
-    // Realtime-поток новых сообщений для конкретного чата
     fun listenForMessages(chatId: String): Flow<MessageDto?> {
         val channel = SupabaseProvider.client.realtime.channel("chat-$chatId")
-
         return channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "messages"
             filter = "chat_id=eq.$chatId"
         }.map { action ->
             try {
                 val record = action.record
-                // Пропускаем удалённые
                 val deletedAt = record["deleted_at"]?.jsonPrimitive?.content
                 if (!deletedAt.isNullOrBlank() && deletedAt != "null") return@map null
-
                 MessageDto(
                     id = record["id"]?.jsonPrimitive?.content ?: return@map null,
                     chatId = record["chat_id"]?.jsonPrimitive?.content ?: return@map null,
@@ -91,27 +80,19 @@ class MessagesRepository {
     }
 
     suspend fun sendMessage(chatId: String, senderId: String, text: String): MessageDto {
-        val clientId = UUID.randomUUID().toString()
         return SupabaseProvider.client.postgrest["messages"]
             .insert(
                 SendMessageRequest(
                     chatId = chatId,
                     senderId = senderId,
-                    clientId = clientId,
+                    clientId = UUID.randomUUID().toString(),
                     text = text
                 )
             ) {
                 select(
                     Columns.list(
-                        "id",
-                        "chat_id",
-                        "sender_id",
-                        "client_id",
-                        "text",
-                        "created_at",
-                        "updated_at",
-                        "deleted_at",
-                        "version"
+                        "id", "chat_id", "sender_id", "client_id",
+                        "text", "created_at", "updated_at", "deleted_at", "version"
                     )
                 )
             }
@@ -120,28 +101,18 @@ class MessagesRepository {
 
     suspend fun deleteMessage(messageId: String) {
         SupabaseProvider.client.postgrest["messages"]
-            .update(
-                {
-                    set("deleted_at", Instant.now().toString())
-                }
-            ) {
-                filter {
-                    eq("id", messageId)
-                }
+            .update({ set("deleted_at", Instant.now().toString()) }) {
+                filter { eq("id", messageId) }
             }
     }
 
     suspend fun editMessage(messageId: String, newText: String) {
         SupabaseProvider.client.postgrest["messages"]
-            .update(
-                {
-                    set("text", newText)
-                    set("updated_at", Instant.now().toString())
-                }
-            ) {
-                filter {
-                    eq("id", messageId)
-                }
+            .update({
+                set("text", newText)
+                set("updated_at", Instant.now().toString())
+            }) {
+                filter { eq("id", messageId) }
             }
     }
 }

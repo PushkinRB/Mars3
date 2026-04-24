@@ -1,4 +1,5 @@
 package com.roman.mars
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -24,6 +25,7 @@ import com.roman.mars.data.repository.ContactMatcherRepository
 import com.roman.mars.data.repository.ContactRepository
 import com.roman.mars.data.repository.MarsUserRepository
 import com.roman.mars.data.repository.PrivateChatRepository
+import com.roman.mars.data.supabase.SessionCheck
 import com.roman.mars.data.supabase.SupabaseProvider
 import com.roman.mars.presentation.contacts.ContactListViewModel
 import com.roman.mars.presentation.contacts.ContactListViewModelFactory
@@ -37,9 +39,9 @@ import com.roman.mars.ui.common.LoadingScreen
 import com.roman.mars.ui.contacts.ContactListScreen
 import com.roman.mars.ui.theme.MarsTheme
 import kotlinx.coroutines.launch
-import com.roman.mars.data.supabase.SessionCheck
 
 class MainActivity : ComponentActivity() {
+
     private var selectedChat by mutableStateOf<Chat?>(null)
     private var showContacts by mutableStateOf(false)
 
@@ -73,10 +75,32 @@ class MainActivity : ComponentActivity() {
                 val rememberMeStorage = RememberMeStorage(this@MainActivity)
                 val secureCredentialsStorage = SecureCredentialsStorage(this@MainActivity)
 
+                // Словарь: последние 10 цифр телефона -> имя из телефонной книги
+                val contactNameMap: Map<String, String> = buildMap {
+                    contacts
+                        .filter { matched -> matched.marsUser != null }
+                        .forEach { matched ->
+                            val phone1 = matched.marsUser?.phone
+                                ?.replace(Regex("[^0-9]"), "")
+                                ?.takeLast(10)
+                            if (!phone1.isNullOrBlank() && phone1.length >= 7) {
+                                put(phone1, matched.contact.name)
+                            }
+                            val phone2 = matched.contact.phoneNumber
+                                ?.replace(Regex("[^0-9]"), "")
+                                ?.takeLast(10)
+                            if (!phone2.isNullOrBlank() &&
+                                phone2.length >= 7 &&
+                                phone2 != phone1
+                            ) {
+                                put(phone2, matched.contact.name)
+                            }
+                        }
+                }
+
                 LaunchedEffect(Unit) {
                     val rememberMeEnabled = rememberMeStorage.isRememberMeEnabled()
                     authViewModel.applyRememberMe(rememberMeEnabled)
-
                     if (rememberMeEnabled) {
                         authViewModel.applySavedCredentials(
                             email = secureCredentialsStorage.getEmail(),
@@ -87,9 +111,18 @@ class MainActivity : ComponentActivity() {
                         authViewModel.signOut()
                     }
                 }
+
                 LaunchedEffect(authState.isAuthorized) {
                     if (authState.isAuthorized) {
-                        com.roman.mars.data.supabase.SessionCheck.logSession()
+                        SessionCheck.logSession()
+                        // Тихая загрузка контактов если разрешение уже есть
+                        val permissionGranted = ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.READ_CONTACTS
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (permissionGranted) {
+                            contactListViewModel.loadContacts()
+                        }
                     }
                 }
 
@@ -99,15 +132,13 @@ class MainActivity : ComponentActivity() {
                     authState.email,
                     authState.password
                 ) {
-                    if (authState.isAuthorized) {
-                        if (authState.rememberMe) {
-                            secureCredentialsStorage.saveCredentials(
-                                email = authState.email,
-                                password = authState.password
-                            )
-                        } else {
-                            secureCredentialsStorage.clearCredentials()
-                        }
+                    if (authState.isAuthorized && authState.rememberMe) {
+                        secureCredentialsStorage.saveCredentials(
+                            email = authState.email,
+                            password = authState.password
+                        )
+                    } else if (authState.isAuthorized && !authState.rememberMe) {
+                        secureCredentialsStorage.clearCredentials()
                     }
                 }
 
@@ -134,7 +165,6 @@ class MainActivity : ComponentActivity() {
                         this@MainActivity,
                         Manifest.permission.READ_CONTACTS
                     ) == PackageManager.PERMISSION_GRANTED
-
                     if (permissionGranted) {
                         contactListViewModel.loadContacts()
                         showContacts = true
@@ -145,31 +175,30 @@ class MainActivity : ComponentActivity() {
 
                 fun createChatFromContact(contact: MatchedContact) {
                     val marsUser = contact.marsUser ?: return
-
                     lifecycleScope.launch {
                         try {
-                            Log.d("MainActivity", "Creating private chat with userId=${marsUser.id}, contactName=${contact.contact.name}")
-
+                            Log.d(
+                                "MainActivity",
+                                "Creating chat userId=${marsUser.id} name=${contact.contact.name}"
+                            )
                             val chatId = privateChatRepository.createPrivateChat(
                                 otherUserId = marsUser.id,
                                 chatTitle = contact.contact.name
                             )
-
-                            Log.d("MainActivity", "Private chat created/opened successfully. chatId=$chatId")
-
+                            Log.d("MainActivity", "Chat ready chatId=$chatId")
                             showContacts = false
                             chatListViewModel.loadChats()
-
                             selectedChat = Chat(
                                 id = chatId,
                                 name = contact.contact.name,
                                 lastMessage = "",
                                 time = "",
                                 unreadCount = 0,
-                                isLastMessageMine = false
+                                isLastMessageMine = false,
+                                otherUserPhone = marsUser.phone
                             )
                         } catch (e: Exception) {
-                            Log.e("MainActivity", "Failed to create private chat", e)
+                            Log.e("MainActivity", "Failed to create chat", e)
                         }
                     }
                 }
@@ -189,9 +218,7 @@ class MainActivity : ComponentActivity() {
                                 authViewModel.onRememberMeChanged(value)
                             },
                             onTogglePasswordVisibility = authViewModel::togglePasswordVisibility,
-                            onSubmit = {
-                                authViewModel.submit()
-                            },
+                            onSubmit = { authViewModel.submit() },
                             onToggleMode = authViewModel::toggleMode
                         )
                     }
@@ -200,12 +227,8 @@ class MainActivity : ComponentActivity() {
                         ContactListScreen(
                             contacts = contacts,
                             isLoading = isContactsLoading,
-                            onContactClick = { contact ->
-                                createChatFromContact(contact)
-                            },
-                            onBackClick = {
-                                showContacts = false
-                            }
+                            onContactClick = { contact -> createChatFromContact(contact) },
+                            onBackClick = { showContacts = false }
                         )
                     }
 

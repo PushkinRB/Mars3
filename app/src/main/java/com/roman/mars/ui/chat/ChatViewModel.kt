@@ -19,13 +19,12 @@ class ChatViewModel(
     private val sessionRepository: SessionRepository = SessionRepository()
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ChatUiState(messages = emptyList()))
+    private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var currentChatId: String? = null
     private var realtimeJob: Job? = null
 
-    // Устанавливаем чат — вызывается при открытии экрана чата
     fun setChat(chatId: String) {
         if (currentChatId == chatId) return
         currentChatId = chatId
@@ -33,7 +32,6 @@ class ChatViewModel(
         startRealtime(chatId)
     }
 
-    // Загрузка сообщений из базы (первичная и после действий)
     fun loadMessages() {
         val chatId = currentChatId ?: return
         viewModelScope.launch {
@@ -55,35 +53,26 @@ class ChatViewModel(
         }
     }
 
-    // Запускаем Realtime-подписку вместо polling
     private fun startRealtime(chatId: String) {
         realtimeJob?.cancel()
         realtimeJob = viewModelScope.launch {
             try {
-                // Подписываемся на канал
                 repository.subscribeChannel(chatId)
-
-                // Слушаем новые сообщения
                 repository.listenForMessages(chatId)
                     .filterNotNull()
                     .collect { newMessage ->
                         _uiState.update { state ->
-                            // Защита от дублей по client_id и id
                             val alreadyExists = state.messages.any { existing ->
                                 existing.id == newMessage.id ||
                                         (!newMessage.clientId.isNullOrBlank() &&
                                                 existing.clientId == newMessage.clientId)
                             }
-                            if (alreadyExists) {
-                                state
-                            } else {
-                                state.copy(messages = state.messages + newMessage)
-                            }
+                            if (alreadyExists) state
+                            else state.copy(messages = state.messages + newMessage)
                         }
                     }
             } catch (e: Exception) {
-                Log.e("ChatViewModel", "Realtime failed, falling back", e)
-                // Если Realtime не работает (слабая сеть) — не крашимся
+                Log.e("ChatViewModel", "Realtime failed, will rely on manual refresh", e)
             }
         }
     }
@@ -123,9 +112,9 @@ class ChatViewModel(
     }
 
     fun sendMessage() {
-        val editingMessageId = uiState.value.editingMessageId
-        if (editingMessageId != null) {
-            saveEditedMessage(editingMessageId)
+        val editingId = uiState.value.editingMessageId
+        if (editingId != null) {
+            saveEditedMessage(editingId)
             return
         }
 
@@ -133,45 +122,38 @@ class ChatViewModel(
         val senderId = sessionRepository.currentUserId()
         val text = uiState.value.draftMessage.trim()
 
-        // Защита от двойного нажатия
         if (_uiState.value.isSending) return
-
         if (senderId.isNullOrBlank()) {
             _uiState.update { it.copy(error = "Пользователь не авторизован") }
             return
         }
-
         if (text.isBlank()) return
 
         viewModelScope.launch {
+            // Сразу очищаем поле и блокируем кнопку
             _uiState.update { it.copy(isSending = true, error = null, draftMessage = "") }
-
             try {
                 val sent = repository.sendMessage(
                     chatId = chatId,
                     senderId = senderId,
                     text = text
                 )
-
-                // Добавляем отправленное сообщение сразу (Realtime может чуть опоздать)
+                // Добавляем своё сообщение сразу — Realtime может чуть опоздать
                 _uiState.update { state ->
                     val alreadyExists = state.messages.any { it.id == sent.id ||
                             (!sent.clientId.isNullOrBlank() && it.clientId == sent.clientId) }
-                    val updatedMessages = if (alreadyExists) state.messages
-                    else state.messages + sent
+                    val updated = if (alreadyExists) state.messages else state.messages + sent
                     state.copy(
-                        messages = updatedMessages,
+                        messages = updated,
                         isSending = false,
-                        error = null,
                         editingMessageId = null,
                         isEditing = false
                     )
                 }
-
                 Log.d("ChatViewModel", "sendMessage success chatId=$chatId")
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "sendMessage failed", e)
-                // Возвращаем черновик обратно если отправка упала
+                // Возвращаем текст обратно в поле если отправка упала
                 _uiState.update {
                     it.copy(
                         isSending = false,
@@ -191,10 +173,10 @@ class ChatViewModel(
         viewModelScope.launch {
             try {
                 repository.editMessage(messageId, trimmed)
-                val updatedMessages = repository.loadMessages(chatId)
+                val updated = repository.loadMessages(chatId)
                 _uiState.update {
                     it.copy(
-                        messages = updatedMessages,
+                        messages = updated,
                         draftMessage = "",
                         editingMessageId = null,
                         isEditing = false,
@@ -203,9 +185,7 @@ class ChatViewModel(
                 }
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "editMessage failed messageId=$messageId", e)
-                _uiState.update {
-                    it.copy(error = e.message ?: "Не удалось отредактировать сообщение")
-                }
+                _uiState.update { it.copy(error = e.message ?: "Не удалось отредактировать") }
             }
         }
     }
@@ -215,15 +195,11 @@ class ChatViewModel(
         viewModelScope.launch {
             try {
                 repository.deleteMessage(messageId)
-                val updatedMessages = repository.loadMessages(chatId)
-                _uiState.update {
-                    it.copy(messages = updatedMessages, error = null)
-                }
+                val updated = repository.loadMessages(chatId)
+                _uiState.update { it.copy(messages = updated, error = null) }
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "deleteMessage failed messageId=$messageId", e)
-                _uiState.update {
-                    it.copy(error = e.message ?: "Не удалось удалить сообщение")
-                }
+                _uiState.update { it.copy(error = e.message ?: "Не удалось удалить") }
             }
         }
     }
@@ -236,15 +212,11 @@ class ChatViewModel(
         viewModelScope.launch {
             try {
                 repository.editMessage(messageId, trimmed)
-                val updatedMessages = repository.loadMessages(chatId)
-                _uiState.update {
-                    it.copy(messages = updatedMessages, error = null)
-                }
+                val updated = repository.loadMessages(chatId)
+                _uiState.update { it.copy(messages = updated, error = null) }
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "editMessage failed messageId=$messageId", e)
-                _uiState.update {
-                    it.copy(error = e.message ?: "Не удалось отредактировать сообщение")
-                }
+                _uiState.update { it.copy(error = e.message ?: "Не удалось отредактировать") }
             }
         }
     }
