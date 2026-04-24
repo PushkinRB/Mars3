@@ -1,6 +1,18 @@
 package com.roman.mars.data.supabase
-import io.github.jan.supabase.postgrest.postgrest import io.github.jan.supabase.postgrest.query.Columns import io.github.jan.supabase.postgrest.query.Order import java.time.Instant import java.util.UUID
+
+// НОВЫЙ ИМПОРТ для работы с Realtime
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.time.Instant
+import java.util.UUID
+
 class MessagesRepository {
+
     suspend fun loadMessages(chatId: String): List<MessageDto> {
         return SupabaseProvider.client.postgrest["messages"]
             .select(
@@ -24,6 +36,26 @@ class MessagesRepository {
             .decodeList<MessageDto>()
             .filter { it.deletedAt == null }
     }
+
+    // НОВАЯ ФУНКЦИЯ: Подписывается на события вставки (INSERT) в таблицу "messages"
+    // Она возвращает Flow, который будет испускать новые сообщения в реальном времени
+    suspend fun listenForNewMessages(chatId: String): Flow<MessageDto> {
+        // Создаем канал для прослушивания изменений
+        val channel = SupabaseProvider.client.realtime.createChannel("chat-$chatId")
+
+        // Подписываемся на события вставки (INSERT) в таблице "messages" для конкретного чата
+        return channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+            table = "messages"
+            filter = "chat_id=eq.$chatId" // Фильтруем события только для текущего чата
+        }.map {
+            // Как только приходит новое событие, мы декодируем его в наш объект MessageDto
+            it.decodeRecord<MessageDto>()
+        }.also {
+            // Присоединяемся к каналу, чтобы начать слушать
+            channel.join()
+        }
+    }
+
 
     suspend fun sendMessage(chatId: String, senderId: String, text: String): MessageDto {
         return SupabaseProvider.client.postgrest["messages"]
@@ -79,3 +111,4 @@ class MessagesRepository {
             }
     }
 }
+

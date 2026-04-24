@@ -41,15 +41,20 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
 
+    // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+
+    // Room (локальная база данных)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
+    // Тестирование
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -57,12 +62,23 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.2.5")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:3.2.5")
-    implementation("io.ktor:ktor-client-android:3.1.3")
-    implementation("io.ktor:ktor-client-content-negotiation:3.1.3")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.1.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
-    implementation("io.github.jan-tennert.supabase:auth-kt:3.2.5")
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // --- НАШИ НОВЫЕ, ЧИСТЫЕ ЗАВИСИМОСТИ ---
+
+    // Supabase (используем BOM)
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.realtime)
+    implementation(libs.supabase.auth)
+
+    // Ktor (зависимости для Supabase)
+    implementation(libs.ktor.client.android)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+
+    // Сериализация (для работы с JSON)
+    implementation(libs.kotlinx.serialization.json)
+
+    // Шифрованное хранилище
+    implementation(libs.androidx.security.crypto)
 }
