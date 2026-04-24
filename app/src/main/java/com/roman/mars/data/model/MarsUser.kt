@@ -5,5 +5,5 @@ data class MarsUser(
     val email: String?,
     val displayName: String?,
     val phone: String?,
-    val phoneNormalized: String
+    val phoneNormalized: String?
 )

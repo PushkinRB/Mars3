@@ -9,10 +9,14 @@ import kotlinx.serialization.json.put
 class ProfileRepository {
 
     private val client = SupabaseProvider.client
+
     suspend fun upsertProfile(
         id: String,
         email: String?,
-        displayName: String?
+        displayName: String?,
+        phone: String? = null,
+        phoneNormalized: String? = null,
+        avatarUrl: String? = null
     ) {
         client
             .from("profiles")
@@ -21,9 +25,13 @@ class ProfileRepository {
                     put("id", id)
                     put("email", email)
                     put("display_name", displayName)
+                    put("phone", phone)
+                    put("phone_normalized", phoneNormalized)
+                    put("avatar_url", avatarUrl)
                 }
             )
     }
+
     suspend fun loadMyProfile(userId: String): ProfileDto? {
         return client
             .from("profiles")

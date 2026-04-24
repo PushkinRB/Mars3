@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
                             if (!phone1.isNullOrBlank() && phone1.length >= 7) {
                                 put(phone1, matched.contact.name)
                             }
-                            val phone2 = matched.contact.phoneNumber
+                            val phone2 = matched.contact.phone
                                 ?.replace(Regex("[^0-9]"), "")
                                 ?.takeLast(10)
                             if (!phone2.isNullOrBlank() &&
