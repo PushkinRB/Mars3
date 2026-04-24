@@ -6,7 +6,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.roman.mars.data.model.Chat
 
-@Composable<
+@Composable
 fun SupabaseChatListRoute(
     viewModel: SupabaseChatListViewModel,
     onLogoutClick: () -> Unit,
