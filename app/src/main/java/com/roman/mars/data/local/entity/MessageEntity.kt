@@ -1,21 +1,33 @@
 package com.roman.mars.data.local.entity
-
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-
 @Entity(tableName = "messages")
 data class MessageEntity(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
-    val chatId: Long,
-    val senderId: Long,
-    val text: String = "",
-val timestamp: Long,
-val isIncoming: Boolean,
-val status: String = MessageStatus.PENDING.name,
-val type: String = MessageType.TEXT.name,
-val localFilePath: String? = null,
-val remoteFileUrl: String? = null,
-val durationMs: Long? = null,
-val transcript: String? = null
+    @PrimaryKey
+    val id: String,
+
+    @ColumnInfo(name = "chat_id")
+    val chatId: String,
+
+    @ColumnInfo(name = "sender_id")
+    val senderId: String,
+
+    @ColumnInfo(name = "content")
+    val content: String,
+
+    @ColumnInfo(name = "timestamp")
+    val timestamp: Long,
+
+    @ColumnInfo(name = "client_id")
+    val clientId: String? = null,  // для защиты от дублей при realtime
+
+    @ColumnInfo(name = "read_at")
+    val readAt: Long? = null,  // время прочтения сообщения
+
+    @ColumnInfo(name = "is_sent")
+    val isSent: Boolean = true,  // отправлено ли на сервер
+
+    @ColumnInfo(name = "synced")
+    val synced: Boolean = false  // синхронизировано ли с Supabase
 )
