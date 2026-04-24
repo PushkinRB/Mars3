@@ -23,7 +23,7 @@ fun SupabaseChatListRoute(
         onChatClick = onChatClick,
         onOpenContacts = onOpenContactsClick,
         onDeleteChat = { chat ->
-            viewModel.deleteChat(chat)
+
         },
         onLogoutClick = onLogoutClick
     )

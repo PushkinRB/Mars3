@@ -1,5 +1,19 @@
 package com.roman.mars.ui.chat
-import android.util.Log import androidx.lifecycle.ViewModel import androidx.lifecycle.viewModelScope import com.roman.mars.data.supabase.MessageDto import com.roman.mars.data.supabase.MessagesRepository import com.roman.mars.ui.auth.SessionRepository import kotlinx.coroutines.flow.MutableStateFlow import kotlinx.coroutines.flow.StateFlow import kotlinx.coroutines.flow.asStateFlow import kotlinx.coroutines.flow.update import kotlinx.coroutines.launch
+
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.roman.mars.data.supabase.MessageDto
+import com.roman.mars.data.supabase.MessagesRepository
+import com.roman.mars.ui.auth.SessionRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
 class ChatViewModel( private val repository: MessagesRepository = MessagesRepository(), private val sessionRepository: SessionRepository = SessionRepository() ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         ChatUiState(
@@ -9,11 +23,28 @@ class ChatViewModel( private val repository: MessagesRepository = MessagesReposi
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var currentChatId: String? = null
+    private var pollingJob: Job? = null
 
     fun setChat(chatId: String) {
         if (currentChatId == chatId) return
         currentChatId = chatId
         loadMessages()
+        startPolling()
+    }
+
+    private fun startPolling() {
+        pollingJob?.cancel()
+        pollingJob = viewModelScope.launch {
+            while (true) {
+                delay(2500)
+                loadMessagesSilently()
+            }
+        }
+    }
+
+    override fun onCleared() {
+        pollingJob?.cancel()
+        super.onCleared()
     }
 
     fun loadMessages() {
@@ -41,6 +72,23 @@ class ChatViewModel( private val repository: MessagesRepository = MessagesReposi
                         error = e.message ?: "Не удалось загрузить сообщения"
                     )
                 }
+            }
+        }
+    }
+
+    private fun loadMessagesSilently() {
+        val chatId = currentChatId ?: return
+
+        viewModelScope.launch {
+            try {
+                val messages = repository.loadMessages(chatId)
+                _uiState.update {
+                    it.copy(
+                        messages = messages,
+                        error = null
+                    )
+                }
+            } catch (_: Exception) {
             }
         }
     }
@@ -84,18 +132,20 @@ class ChatViewModel( private val repository: MessagesRepository = MessagesReposi
         val senderId = sessionRepository.currentUserId()
         val text = uiState.value.draftMessage.trim()
 
+        if (_uiState.value.isSending) {
+            return
+        }
+
         Log.d("ChatViewModel", "sendMessage chatId=$chatId senderId=$senderId textLength=${text.length}")
 
         if (senderId.isNullOrBlank()) {
             _uiState.update {
                 it.copy(error = "Пользователь не авторизован")
             }
-            Log.e("ChatViewModel", "sendMessage failed: senderId is null or blank")
             return
         }
 
         if (text.isBlank()) {
-            Log.e("ChatViewModel", "sendMessage ignored: text is blank")
             return
         }
 

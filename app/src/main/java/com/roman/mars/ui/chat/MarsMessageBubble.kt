@@ -3,13 +3,15 @@ package com.roman.mars.ui.chat
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -41,10 +43,13 @@ fun MarsMessageBubble(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Bottom
         ) {
-            if (message.isMine) Spacer(modifier = Modifier.weight(1f))
+            if (message.isMine) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
             Column(
                 modifier = Modifier
-                    .width(280.dp)
+                    .widthIn(max = 280.dp)
                     .background(
                         color = if (message.isMine) {
                             MarsColors.AccentDeep.copy(alpha = 0.88f)
@@ -61,7 +66,9 @@ fun MarsMessageBubble(
                     .combinedClickable(
                         onClick = {},
                         onLongClick = {
-                            if (message.isMine) menuExpanded = true
+                            if (message.isMine) {
+                                menuExpanded = true
+                            }
                         }
                     )
                     .padding(horizontal = 14.dp, vertical = 10.dp)
@@ -71,9 +78,13 @@ fun MarsMessageBubble(
                     color = MarsColors.TextPrimary,
                     fontSize = 15.sp
                 )
+
+                Spacer(modifier = Modifier.size(6.dp))
+
                 Row(
                     modifier = Modifier.align(Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     if (message.isEdited) {
                         Text(
@@ -82,16 +93,16 @@ fun MarsMessageBubble(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
                     }
+
                     Text(
                         text = message.time,
                         color = MarsColors.TextMuted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
+
                     if (message.isMine && message.showChecks) {
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "✓✓",
                             color = MarsColors.OnlineBlue,
@@ -101,8 +112,12 @@ fun MarsMessageBubble(
                     }
                 }
             }
-            if (!message.isMine) Spacer(modifier = Modifier.weight(1f))
+
+            if (!message.isMine) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
+
         DropdownMenu(
             expanded = menuExpanded,
             onDismissRequest = { menuExpanded = false }
@@ -114,6 +129,7 @@ fun MarsMessageBubble(
                     onEditMessage(message.id, message.text)
                 }
             )
+
             DropdownMenuItem(
                 text = { Text("Удалить") },
                 onClick = {
@@ -124,4 +140,3 @@ fun MarsMessageBubble(
         }
     }
 }
-

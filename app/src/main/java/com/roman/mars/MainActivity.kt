@@ -1,5 +1,44 @@
 package com.roman.mars
-import android.Manifest import android.content.pm.PackageManager import android.os.Bundle import android.util.Log import androidx.activity.ComponentActivity import androidx.activity.compose.rememberLauncherForActivityResult import androidx.activity.compose.setContent import androidx.activity.enableEdgeToEdge import androidx.activity.result.contract.ActivityResultContracts import androidx.activity.viewModels import androidx.compose.runtime.LaunchedEffect import androidx.compose.runtime.getValue import androidx.compose.runtime.mutableStateOf import androidx.compose.runtime.setValue import androidx.core.content.ContextCompat import androidx.lifecycle.compose.collectAsStateWithLifecycle import androidx.lifecycle.lifecycleScope import com.roman.mars.data.local.RememberMeStorage import com.roman.mars.data.local.SecureCredentialsStorage import com.roman.mars.data.model.Chat import com.roman.mars.data.model.MatchedContact import com.roman.mars.data.repository.ContactMatcherRepository import com.roman.mars.data.repository.ContactRepository import com.roman.mars.data.repository.MarsUserRepository import com.roman.mars.data.repository.PrivateChatRepository import com.roman.mars.data.supabase.SupabaseProvider import com.roman.mars.presentation.contacts.ContactListViewModel import com.roman.mars.presentation.contacts.ContactListViewModelFactory import com.roman.mars.ui.auth.AuthScreen import com.roman.mars.ui.auth.AuthViewModel import com.roman.mars.ui.chat.ChatViewModel import com.roman.mars.ui.chat.SupabaseChatRoute import com.roman.mars.ui.chatlist.SupabaseChatListRoute import com.roman.mars.ui.chatlist.SupabaseChatListViewModel import com.roman.mars.ui.common.LoadingScreen import com.roman.mars.ui.contacts.ContactListScreen import com.roman.mars.ui.theme.MarsTheme import kotlinx.coroutines.launch
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.util.Log
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.roman.mars.data.local.RememberMeStorage
+import com.roman.mars.data.local.SecureCredentialsStorage
+import com.roman.mars.data.model.Chat
+import com.roman.mars.data.model.MatchedContact
+import com.roman.mars.data.repository.ContactMatcherRepository
+import com.roman.mars.data.repository.ContactRepository
+import com.roman.mars.data.repository.MarsUserRepository
+import com.roman.mars.data.repository.PrivateChatRepository
+import com.roman.mars.data.supabase.SupabaseProvider
+import com.roman.mars.presentation.contacts.ContactListViewModel
+import com.roman.mars.presentation.contacts.ContactListViewModelFactory
+import com.roman.mars.ui.auth.AuthScreen
+import com.roman.mars.ui.auth.AuthViewModel
+import com.roman.mars.ui.chat.ChatViewModel
+import com.roman.mars.ui.chat.SupabaseChatRoute
+import com.roman.mars.ui.chatlist.SupabaseChatListRoute
+import com.roman.mars.ui.chatlist.SupabaseChatListViewModel
+import com.roman.mars.ui.common.LoadingScreen
+import com.roman.mars.ui.contacts.ContactListScreen
+import com.roman.mars.ui.theme.MarsTheme
+import kotlinx.coroutines.launch
+import com.roman.mars.data.supabase.SessionCheck
+
 class MainActivity : ComponentActivity() {
     private var selectedChat by mutableStateOf<Chat?>(null)
     private var showContacts by mutableStateOf(false)
@@ -46,6 +85,11 @@ class MainActivity : ComponentActivity() {
                     } else {
                         secureCredentialsStorage.clearCredentials()
                         authViewModel.signOut()
+                    }
+                }
+                LaunchedEffect(authState.isAuthorized) {
+                    if (authState.isAuthorized) {
+                        com.roman.mars.data.supabase.SessionCheck.logSession()
                     }
                 }
 

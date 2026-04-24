@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,8 +43,8 @@ fun MarsChatScreen(
         Image(
             painter = painterResource(id = R.drawable.mars_bg),
             contentDescription = "Фон чата Mars",
-        modifier = Modifier.fillMaxSize(),
-        contentScale = ContentScale.Crop
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
 
         Box(
@@ -58,6 +59,7 @@ fun MarsChatScreen(
                     )
                 )
         )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -67,14 +69,15 @@ fun MarsChatScreen(
                 title = title,
                 onBackClick = onBackClick
             )
+
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
+                contentPadding = PaddingValues(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                item { Spacer(modifier = Modifier.height(8.dp)) }
                 items(messages) { message ->
                     MarsMessageBubble(
                         message = message,
@@ -82,8 +85,12 @@ fun MarsChatScreen(
                         onDeleteMessage = onDeleteMessage
                     )
                 }
-                item { Spacer(modifier = Modifier.height(bottomSpacer.dp)) }
+
+                item {
+                    Spacer(modifier = Modifier.height(bottomSpacer.dp))
+                }
             }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -106,6 +113,6 @@ data class MarsUiMessage(
     val text: String,
     val time: String,
     val isMine: Boolean,
-    val showChecks: Boolean = false,
+    val showChecks: Boolean = true,
     val isEdited: Boolean = false
 )
